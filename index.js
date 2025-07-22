@@ -5,10 +5,14 @@ const morgan = require('morgan');
 const { status } = require('minecraft-server-util');
 const dns = require('dns').promises;
 const moment = require('moment-timezone');
+const cors = require('cors');
 // Load environment variables
 require('dotenv').config();
 const app = express();
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+// Enable CORS for all origins
+app.use(cors({ origin: '*' }));
 
 // 信任代理配置
 if (process.env.TRUST_PROXY) {
