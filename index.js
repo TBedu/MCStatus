@@ -6,6 +6,7 @@ const { status } = require('minecraft-server-util');
 const dns = require('dns').promises;
 const moment = require('moment-timezone');
 const cors = require('cors');
+const net = require('net');
 // Load environment variables
 require('dotenv').config();
 const app = express();
@@ -26,7 +27,7 @@ const rateLimitMiddleware = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: '请求过于频繁，请稍后再试',
+    error: 'Too many requests, please try again later',
     status: 429
   },
   statusCode: 429
@@ -52,25 +53,67 @@ app.get('/3/:serverAddress', async (req, res) => {
     const originalAddress = serverAddress;
     let [host, port = 25565] = serverAddress.split(':');
     port = parseInt(port, 10);
+    
+    // Check for SRV record
+    let srvRecordFound = false;
+    try {
+      const srvRecords = await dns.resolveSrv(`_minecraft._tcp.${host}`);
+      if (srvRecords.length > 0) {
+        // Use the first SRV record
+        const srv = srvRecords[0];
+        host = srv.name;
+        port = srv.port;
+        srvRecordFound = true;
+      }
+    } catch (error) {
+      // No SRV record found, continue with original host and port
+    }
+    
     // Resolve hostname to IP address
     try {
       const resolvedHost = await dns.lookup(host, { family: 4 });
       host = resolvedHost.address;
     } catch (error) {
-      return res.status(400).json({ error: 'Failed to resolve hostname' });
+      return res.status(200).json({
+        ip: host,
+        port: port,
+        online: false,
+        debug: {
+          error: {
+            message: 'Failed to resolve hostname'
+          }
+        }
+      });
     }
     
     // Validate port number
     if (isNaN(port) || port < 1 || port > 65535) {
-      return res.status(400).json({
-        error: 'Invalid port number. Must be between 1 and 65535',
+      return res.status(200).json({
         ip: host,
         port: port,
-        online: false
+        online: false,
+        debug: {
+          error: {
+            message: 'Invalid port number. Must be between 1 and 65535'
+          }
+        }
       });
     }
     
     try {
+      // Measure TCP latency
+      const latency = await new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const socket = net.createConnection({ host, port }, () => {
+          const latency = Date.now() - startTime;
+          socket.destroy();
+          resolve(latency);
+        });
+        socket.setTimeout(5000);
+        socket.on('timeout', () => reject(new Error('TCP connection timeout')));
+        socket.on('error', (err) => reject(err));
+      });
+      
       const response = await status(host, port, { timeout: 5000 });
       console.log('Received hostname:', originalAddress);
       
@@ -82,20 +125,13 @@ app.get('/3/:serverAddress', async (req, res) => {
       res.json({
         ip: host,
         port: port,
+        latency: latency,
         debug: {
           ping: true,
-          query: false,
-          bedrock: false,
-          srv: false,
-          querymismatch: false,
-          ipinsrv: false,
-          cnameinsrv: false,
+          srv: srvRecordFound,
           animatedmotd: response.motd.raw.length > 1,
-          cachehit: false,
           cachetime: Math.floor(Date.now() / 1000),
-          cacheexpire: Math.floor(Date.now() / 1000) + 300,
           apiversion: 3,
-          error: {}
         },
         motd: {
           raw: response.motd.raw,
@@ -111,13 +147,15 @@ app.get('/3/:serverAddress', async (req, res) => {
         hostname: originalAddress,
         icon: response.favicon || '',
         software: response.software || parsedSoftware || '',
-        eula_blocked: false
       });
     } catch (error) {
-      if (error.code === 'ECONNREFUSED' && !originalAddress.includes(':')) {
-        return res.status(503).json({ error: '本API暂不支持检测SRV解析后的服务器地址' });
-      }
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({
+        debug: {
+          error: {
+            message: error.message
+          }
+        }
+      });
     }
   } catch (error) {
     res.json({
@@ -168,40 +206,38 @@ app.get('/', (req, res) => {
       
       <div class="endpoint">
         <h3>查询服务器状态</h3>
-        <p><strong>GET /status/:address</strong></p>
-        <p>查询指定地址的Minecraft服务器状态（默认端口25565）</p>
+        <p><strong>GET /3/[address]</strong></p>
+        <p>查询指定地址的Minecraft服务器状态（默认端口25565，支持SRV解析）</p>
       </div>
       
       <div class="endpoint">
-        <p><strong>GET /status/:address/:port</strong></p>
+        <p><strong>GET /3/[address]:[port]</strong></p>
         <p>查询指定地址和端口的Minecraft服务器状态</p>
       </div>
       
       <h2>参数说明</h2>
       <ul>
-        <li><code>:address</code> - 服务器地址（域名或IP）</li>
-        <li><code>:port</code> - 服务器端口（可选，默认为25565）</li>
+        <li><code>[address]</code> - 服务器地址（域名或IP）</li>
+        <li><code>[port]</code> - 服务器端口（可选，默认为25565）</li>
       </ul>
       
       <h2>请求示例</h2>
       <div class="example">
-        <p><strong>不带端口（默认25565）：</strong></p>
-        <pre>GET /status/mc.tbedu.top</pre>
+        <p><strong>不带端口（默认25565，支持SRV解析）：</strong></p>
+        <pre>GET /3/mc.tbedu.top</pre>
       </div>
       
       <div class="example">
         <p><strong>带端口：</strong></p>
-        <pre>GET /status/mc.tbedu.top/25566</pre>
+        <pre>GET /3/mc.tbedu.top:25565</pre>
       </div>
       
       <h2>响应示例</h2>
-      <pre>{"ip":"192.168.1.1","port":25565,"debug":{"originalAddress":"mc.tbedu.top","resolvedIp":"192.168.1.1","responseTime":452,"cacheHit":false,"cachedAt":"2025-07-22T14:30:00+08:00"},"online":true,"motd":"欢迎来到我的世界服务器","players":{"online":15,"max":100},"version":"1.18.2","software":"Paper"}</pre>
+      <pre>{"ip":"192.168.1.1","port":25565,"online":true,"motd":{"raw":"欢迎来到我的世界服务器","clean":"欢迎来到我的世界服务器","html":"<span style='color: #00FF00'>欢迎来到我的世界服务器</span>"},"players":{"online":15,"max":100},"version":"1.18.2","software":"Paper"}</pre>
       
       <h2>错误处理</h2>
       <ul>
-        <li><strong>400 Bad Request</strong> - 无效的服务器地址或端口</li>
         <li><strong>500 Internal Server Error</strong> - 服务器内部错误</li>
-        <li><strong>503 Service Unavailable</strong> - 无法连接到Minecraft服务器</li>
       </ul>
       
       <h2>时区说明</h2>
