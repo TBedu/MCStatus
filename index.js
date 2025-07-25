@@ -2,7 +2,7 @@ process.env.TZ = 'Asia/Shanghai';
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
-const { status } = require('minecraft-server-util');
+const { status, statusBedrock } = require('minecraft-server-util');
 const dns = require('dns').promises;
 const moment = require('moment-timezone');
 const cors = require('cors');
@@ -149,7 +149,10 @@ app.get('/3/:serverAddress', async (req, res) => {
         software: response.software || parsedSoftware || '',
       });
     } catch (error) {
-      return res.status(500).json({
+      return res.status(200).json({
+        ip: host,
+        port: port,
+        online: false,
         debug: {
           error: {
             message: error.message
@@ -161,6 +164,96 @@ app.get('/3/:serverAddress', async (req, res) => {
     res.json({
       ip: req.params.serverAddress.split(':')[0] || req.params.serverAddress,
       port: parseInt(req.params.serverAddress.split(':')[1], 10) || 25565,
+      online: false,
+      debug: {
+        error: {
+          message: error.message
+        }
+      }
+    });
+  }
+});
+
+// Add Bedrock Edition server status endpoint
+app.get('/bedrock/3/:serverAddress', async (req, res) => {
+  try {
+    const { serverAddress } = req.params;
+    const originalAddress = serverAddress;
+    let [host, port = 19132] = serverAddress.split(':');
+    port = parseInt(port, 10);
+    
+    // Resolve hostname to IP address
+    try {
+      const resolvedHost = await dns.lookup(host, { family: 4 });
+      host = resolvedHost.address;
+    } catch (error) {
+      return res.status(200).json({
+        ip: host,
+        port: port,
+        online: false,
+        debug: {
+          error: {
+            message: 'Failed to resolve hostname'
+          }
+        }
+      });
+    }
+    
+    // Validate port number
+    if (isNaN(port) || port < 1 || port > 65535) {
+      return res.status(200).json({
+        ip: host,
+        port: port,
+        online: false,
+        debug: {
+          error: {
+            message: 'Invalid port number. Must be between 1 and 65535'
+          }
+        }
+      });
+    }
+    
+    try {
+      const response = await statusBedrock(host, port, { timeout: 5000 });
+      
+      res.json({
+        ip: host,
+        port: port,
+        debug: {
+          ping: true,
+          animatedmotd: response.motd.raw.length > 1,
+          cachetime: Math.floor(Date.now() / 1000),
+          apiversion: 3,
+        },
+        motd: {
+          raw: response.motd.raw,
+          clean: response.motd.clean,
+          html: response.motd.html
+        },
+        players: {
+          online: response.players.online,
+          max: response.players.max
+        },
+        version: response.version.name,
+        online: true,
+        hostname: originalAddress,
+      });
+    } catch (error) {
+      return res.status(200).json({
+        ip: host,
+        port: port,
+        online: false,
+        debug: {
+          error: {
+            message: error.message
+          }
+        }
+      });
+    }
+  } catch (error) {
+    res.json({
+      ip: req.params.serverAddress.split(':')[0] || req.params.serverAddress,
+      port: parseInt(req.params.serverAddress.split(':')[1], 10) || 19132,
       online: false,
       debug: {
         error: {
