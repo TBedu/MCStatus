@@ -274,68 +274,156 @@ app.listen(port, () => {
 // 添加根路由以显示API使用说明
 app.get('/', (req, res) => {
   res.send(`
-    <!DOCTYPE html>
-    <html lang="zh-CN">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>MCStatus API 使用说明</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-        h1 { color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
-        h2 { color: #4CAF50; margin-top: 20px; }
-        pre { background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
-        .endpoint { background-color: #e8f5e9; padding: 10px; border-left: 4px solid #4CAF50; margin: 10px 0; }
-        .example { margin: 15px 0; }
-      </style>
-    </head>
-    <body>
-      <h1>MCStatus API 使用说明</h1>
-      
-      <h2>简介</h2>
-      <p>这是一个用于查询Minecraft服务器状态的API服务。通过以下接口可以获取服务器的在线状态、玩家数量、版本信息等。</p>
-      
-      <h2>API端点</h2>
-      
-      <div class="endpoint">
-        <h3>查询服务器状态</h3>
-        <p><strong>GET /3/[address]</strong></p>
-        <p>查询指定地址的Minecraft服务器状态（默认端口25565，支持SRV解析）</p>
-      </div>
-      
-      <div class="endpoint">
-        <p><strong>GET /3/[address]:[port]</strong></p>
-        <p>查询指定地址和端口的Minecraft服务器状态</p>
-      </div>
-      
-      <h2>参数说明</h2>
-      <ul>
-        <li><code>[address]</code> - 服务器地址（域名或IP）</li>
-        <li><code>[port]</code> - 服务器端口（可选，默认为25565）</li>
-      </ul>
-      
-      <h2>请求示例</h2>
-      <div class="example">
-        <p><strong>不带端口（默认25565，支持SRV解析）：</strong></p>
-        <pre>GET /3/mc.tbedu.top</pre>
-      </div>
-      
-      <div class="example">
-        <p><strong>带端口：</strong></p>
-        <pre>GET /3/mc.tbedu.top:25565</pre>
-      </div>
-      
-      <h2>响应示例</h2>
-      <pre>{"ip":"192.168.1.1","port":25565,"online":true,"motd":{"raw":"欢迎来到我的世界服务器","clean":"欢迎来到我的世界服务器","html":"<span style='color: #00FF00'>欢迎来到我的世界服务器</span>"},"players":{"online":15,"max":100},"version":"1.18.2","software":"Paper"}</pre>
-      
-      <h2>错误处理</h2>
-      <ul>
-        <li><strong>500 Internal Server Error</strong> - 服务器内部错误</li>
-      </ul>
-      
-      <h2>时区说明</h2>
-      <p>API返回的所有时间戳均使用<strong>上海时区（UTC+8）</strong></p>
-    </body>
-    </html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MCStatus API 使用说明</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #333;
+        border-bottom: 2px solid #4CAF50;
+        padding-bottom: 10px;
+      }
+      h2 {
+        color: #4CAF50;
+        margin-top: 20px;
+      }
+      pre {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+      .endpoint {
+        background-color: #e8f5e9;
+        padding: 10px;
+        border-left: 4px solid #4CAF50;
+        margin: 10px 0;
+      }
+      .example {
+        margin: 15px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>MCStatus API 使用说明</h1>
+
+    <h2>简介</h2>
+    <p>
+      这是一个用于查询Minecraft服务器状态的API服务。通过以下接口可以获取服务器的在线状态、玩家数量、版本信息等。
+    </p>
+
+    <h2>API端点</h2>
+
+    <div class="endpoint">
+      <h3>Java版服务器状态</h3>
+      <p><strong>GET /3/[address]</strong></p>
+      <p>
+        查询指定地址的Minecraft Java版服务器状态（默认端口25565，支持SRV解析）
+      </p>
+    </div>
+
+    <div class="endpoint">
+      <p><strong>GET /3/[address]:[port]</strong></p>
+      <p>查询指定地址和端口的Minecraft Java版服务器状态</p>
+    </div>
+
+    <div class="endpoint">
+      <h3>基岩版服务器状态</h3>
+      <p><strong>GET /bedrock/3/[address]</strong></p>
+      <p>
+        查询指定地址的Minecraft基岩版服务器状态（默认端口19132，不支持SRV解析）
+      </p>
+    </div>
+
+    <div class="endpoint">
+      <p><strong>GET /bedrock/3/[address]:[port]</strong></p>
+      <p>查询指定地址和端口的Minecraft基岩版服务器状态</p>
+    </div>
+
+    <h2>参数说明</h2>
+    <ul>
+      <li><code>[address]</code> - 服务器地址（域名或IP）</li>
+      <li>
+        <code>[port]</code> - 服务器端口（可选，Java版默认25565，基岩版默认19132）
+      </li>
+    </ul>
+
+    <h2>请求示例</h2>
+    <div class="example">
+      <p><strong>Java版（不带端口）：</strong></p>
+      <pre>GET /3/mc.tbedu.top</pre>
+    </div>
+
+    <div class="example">
+      <p><strong>Java版（带端口）：</strong></p>
+      <pre>GET /3/mc.tbedu.top:25565</pre>
+    </div>
+
+    <div class="example">
+      <p><strong>基岩版（不带端口）：</strong></p>
+      <pre>GET /bedrock/3/mc.tbedu.top</pre>
+    </div>
+
+    <div class="example">
+      <p><strong>基岩版（带端口）：</strong></p>
+      <pre>GET /bedrock/3/mc.tbedu.top:19132</pre>
+    </div>
+
+    <h2>响应示例</h2>
+    <h3>Java版响应：</h3>
+    <pre>
+{
+  "ip": "192.168.1.1",
+  "port": 25565,
+  "latency": 45,
+  "online": true,
+  "motd": {
+    "raw": "欢迎来到我的世界服务器",
+    "clean": "欢迎来到我的世界服务器",
+    "html": "&lt;span style='color: #00FF00'&gt;欢迎来到我的世界服务器&lt;/span&gt;"
+  },
+  "players": {
+    "online": 15,
+    "max": 100
+  },
+  "version": "1.18.2",
+  "software": "Paper",
+  "srvRecord": true
+}
+    </pre>
+
+    <h3>基岩版响应：</h3>
+    <pre>
+{
+  "ip": "192.168.1.1",
+  "port": 19132,
+  "online": true,
+  "motd": {
+    "raw": "欢迎来到基岩版服务器",
+    "clean": "欢迎来到基岩版服务器",
+    "html": "&lt;span style='color: #00FF00'&gt;欢迎来到基岩版服务器&lt;/span&gt;"
+  },
+  "players": {
+    "online": 8,
+    "max": 50
+  },
+  "version": "1.19.20"
+}
+    </pre>
+
+    <h2>时区说明</h2>
+    <p>API返回的所有时间戳均使用<strong>上海时区（UTC+8）</strong></p>
+  </body>
+</html>
   `);
 });
