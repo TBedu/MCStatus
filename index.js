@@ -340,6 +340,7 @@ app.get('/', (req, res) => {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <title>MCStatus API 使用说明</title>
     <style>
       body {
@@ -501,3 +502,6 @@ app.get('/', (req, res) => {
 </html>
   `);
 });
+
+// 静态文件服务中间件
+app.use(express.static(path.join(__dirname, 'public')));
