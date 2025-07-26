@@ -7,9 +7,65 @@ const dns = require('dns').promises;
 const moment = require('moment-timezone');
 const cors = require('cors');
 const net = require('net');
+const path = require('path');
+const fs = require('fs');
+const rfs = require('rotating-file-stream');
+const app = express();
+
 // Load environment variables
 require('dotenv').config();
-const app = express();
+
+// Initialize API call statistics
+const statsPath = path.join(__dirname, 'stats.json');
+let stats = {
+  totalCalls: 0,
+  dailyCalls: {}
+};
+
+// Read existing stats if file exists
+if (fs.existsSync(statsPath)) {
+  try {
+    stats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
+  } catch (error) {
+    console.error('Failed to read stats file:', error);
+  }
+} else {
+  // Create stats file if it doesn't exist
+  try {
+    fs.writeFileSync(statsPath, JSON.stringify(stats, null, 2));
+  } catch (error) {
+    console.error('Failed to create stats file:', error);
+  }
+}
+
+// Update call statistics
+function updateCallStats() {
+  const today = moment().tz('Asia/Shanghai').format('YYYY-MM-DD');
+  stats.totalCalls++;
+  stats.dailyCalls[today] = (stats.dailyCalls[today] || 0) + 1;
+  
+  try {
+    fs.writeFileSync(statsPath, JSON.stringify(stats, null, 2));
+  } catch (error) {
+    console.error('Failed to write stats:', error);
+  }
+}
+
+// Create logs directory if it doesn't exist
+const logDirectory = path.join(__dirname, 'logs');
+fs.existsSync(logDirectory) || fs.mkdirSync(logDirectory);
+
+// Configure daily rotating log stream
+const accessLogStream = rfs.createStream(`${new Date().toISOString().split('T')[0]}.log`, {
+  interval: '1d',
+  path: logDirectory
+});
+
+// Middleware
+app.use(express.json());
+// Log to file with combined format and to console with dev format
+app.use(morgan('combined', { stream: accessLogStream }));
+app.use(morgan('dev'));
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Enable CORS for all origins
@@ -44,10 +100,11 @@ morgan.token('shanghai-date', () => {
   return moment().tz('Asia/Shanghai').format('DD/MMM/YYYY:HH:mm:ss ZZ');
 });
 // Add request logging
-app.use(morgan(':remote-addr - :remote-user [:shanghai-date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"', { stream: { write: message => console.log(message.trim()) } }));
+app.use(morgan(':remote-addr - [:shanghai-date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"', { stream: { write: message => console.log(message.trim()) } }));
 
 // Add rate limiting
 app.get('/3/:serverAddress', async (req, res) => {
+  updateCallStats();
   try {
     const { serverAddress } = req.params;
     const originalAddress = serverAddress;
@@ -176,6 +233,7 @@ app.get('/3/:serverAddress', async (req, res) => {
 
 // Add Bedrock Edition server status endpoint
 app.get('/bedrock/3/:serverAddress', async (req, res) => {
+  updateCallStats();
   try {
     const { serverAddress } = req.params;
     const originalAddress = serverAddress;
@@ -273,6 +331,9 @@ app.listen(port, () => {
 
 // 添加根路由以显示API使用说明
 app.get('/', (req, res) => {
+  const today = moment().tz('Asia/Shanghai').format('YYYY-MM-DD');
+  const yesterday = moment().tz('Asia/Shanghai').subtract(1, 'day').format('YYYY-MM-DD');
+  
   res.send(`
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -312,6 +373,12 @@ app.get('/', (req, res) => {
       .example {
         margin: 15px 0;
       }
+      .stats {
+        background-color: #e8f5e9;
+        border-radius: 5px;
+        margin: 20px 0;
+        padding: 5px 20px;
+      }
     </style>
   </head>
   <body>
@@ -321,6 +388,13 @@ app.get('/', (req, res) => {
     <p>
       这是一个用于查询Minecraft服务器状态的API服务。通过以下接口可以获取服务器的在线状态、玩家数量、版本信息等。
     </p>
+
+    <div class="stats">
+      <h3>API调用统计</h3>
+      <p>累计调用次数: ${stats.totalCalls}</p>
+      <p>今日调用次数: ${stats.dailyCalls[today] || 0}</p>
+      <p>昨日调用次数: ${stats.dailyCalls[yesterday] || 0}</p>
+    </div>
 
     <h2>API端点</h2>
 

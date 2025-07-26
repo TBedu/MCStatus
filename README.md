@@ -4,6 +4,8 @@ A Node.js API to check the status of Minecraft servers.
 
 ## Features
 - Get Minecraft server status by address (supports custom ports)
+- Support for both Java Edition and Bedrock Edition servers
+- API call statistics (total, daily, and yesterday counts)
 - Rate limiting to prevent abuse
 - Request logging for monitoring
 - Environment-based configuration
@@ -23,41 +25,54 @@ A Node.js API to check the status of Minecraft servers.
 
 ## API Usage
 
-### Endpoint
+### Java Edition Endpoint
 ```
 GET /3/:serverAddress
 ```
 
+### Bedrock Edition Endpoint
+```
+GET /bedrock/3/:serverAddress
+```
+
 ### Parameters
-- `serverAddress`: Minecraft服务器地址（格式：`host` 或 `host:port`，默认端口25565）
+- `serverAddress`: Minecraft服务器地址（格式：`host` 或 `host:port`）
+  - Java版默认端口：25565
+  - 基岩版默认端口：19132
 
 ### 请求示例
-#### 带端口号
+#### Java版（带端口号）
 ```
 GET /3/mc.tbedu.top:25565
 ```
 
-#### 不带端口号（默认25565）
+#### Java版（不带端口号）
 ```
 GET /3/mc.tbedu.top
 ```
 
-### 响应示例
+#### 基岩版（带端口号）
+```
+GET /bedrock/3/mc.tbedu.top:19132
+```
+
+#### 基岩版（不带端口号）
+```
+GET /bedrock/3/mc.tbedu.top
+```
+
+### Java版响应示例
 ```json
 {
   "ip": "118.112.60.42",
   "port": 25565,
+  "latency": 45,
   "debug": {
     "ping": true,
-    "query": false,
-    "bedrock": false,
     "srv": false,
     "animatedmotd": false,
-    "cachehit": false,
     "cachetime": 1721631977,
-    "cacheexpire": 1721632277,
-    "apiversion": 3,
-    "error": {}
+    "apiversion": 3
   },
   "motd": {
     "raw": ["§fMinecraft Server§r"],
@@ -72,8 +87,33 @@ GET /3/mc.tbedu.top
   "online": true,
   "hostname": "mc.tbedu.top",
   "icon": "data:image/png;base64,...",
-  "software": "Paper",
-  "eula_blocked": false
+  "software": "Paper"
+}
+```
+
+### 基岩版响应示例
+```json
+{
+  "ip": "118.112.60.42",
+  "port": 19132,
+  "debug": {
+    "ping": true,
+    "animatedmotd": false,
+    "cachetime": 1721631977,
+    "apiversion": 3
+  },
+  "motd": {
+    "raw": ["Minecraft Bedrock Server"],
+    "clean": ["Minecraft Bedrock Server"],
+    "html": ["<span style=\"color: #FFFFFF\">Minecraft Bedrock Server</span>"]
+  },
+  "players": {
+    "online": 8,
+    "max": 50
+  },
+  "version": "1.21.0",
+  "online": true,
+  "hostname": "mc.tbedu.top"
 }
 ```
 
@@ -88,16 +128,14 @@ GET /3/mc.tbedu.top
   ```
 
 ### 时区说明
-API返回的时间戳（cachetime和cacheexpire）使用**上海时区（UTC+8）**。
-
-### Response Format
-The response follows the format specified in api.json, including server status, players, version, and MOTD information.
+API返回的时间戳（cachetime）使用**上海时区（UTC+8）**。
 
 ## Configuration
 Configuration is done through environment variables in the .env file:
 - `PORT`: Server port (default: 3000)
-- `RATE_LIMIT_WINDOW_MS`: Rate limit window in milliseconds (default: 900000 = 15 minutes)
+- `RATE_LIMIT_WINDOW_MS`: Rate limit window in milliseconds (default: 60000 = 1 minute)
 - `RATE_LIMIT_MAX`: Maximum requests per IP in the window (default: 100)
+- `TRUST_PROXY`: Set to 'true' if running behind a reverse proxy
 
 ## Dependencies
 - express: Web framework
@@ -105,3 +143,8 @@ Configuration is done through environment variables in the .env file:
 - express-rate-limit: Rate limiting middleware
 - morgan: HTTP request logging
 - dotenv: Environment variable management
+- cors: Cross-origin resource sharing
+- moment-timezone: Time zone handling
+- rotating-file-stream: Log file rotation
+- fs: File system operations
+- path: Path handling utilities
