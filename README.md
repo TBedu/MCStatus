@@ -138,3 +138,4 @@ Configuration is done through environment variables in the .env file:
 - rotating-file-stream: Log file rotation
 - fs: File system operations
 - path: Path handling utilities
+- chalk: Terminal string styling
