@@ -10,6 +10,7 @@ const net = require('net');
 const path = require('path');
 const fs = require('fs');
 const rfs = require('rotating-file-stream');
+const chalk = require('chalk');
 const app = express();
 
 // Load environment variables
@@ -55,17 +56,60 @@ function updateCallStats() {
 const logDirectory = path.join(__dirname, 'logs');
 fs.existsSync(logDirectory) || fs.mkdirSync(logDirectory);
 
-// Configure daily rotating log stream
-const accessLogStream = rfs.createStream(`${new Date().toISOString().split('T')[0]}.log`, {
-  interval: '1d',
-  path: logDirectory
+// 添加上海时区日期格式化token
+morgan.token('shanghai-date', () => {
+  return moment().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss');
 });
 
-// Middleware
+// 文件日志格式
+const logFormat = ':remote-addr - [:shanghai-date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"';
+
+// 自定义彩色日志格式
+const coloredLogFormat = function (tokens, req, res) {
+  const statusColor = res.statusCode >= 500 ? chalk.red
+    : res.statusCode >= 400 ? chalk.yellow
+    : res.statusCode >= 300 ? chalk.cyan
+    : res.statusCode >= 200 ? chalk.green
+    : chalk.white;
+
+  return [
+    chalk.gray(tokens['remote-addr'](req, res)),
+    chalk.white(' - '),
+    chalk.blue(`[${tokens['shanghai-date'](req, res)}]`),
+    chalk.white(' "'),
+    chalk.green(tokens.method(req, res)),
+    chalk.white(' '),
+    chalk.cyan(tokens.url(req, res)),
+    chalk.white(' HTTP/'),
+    chalk.gray(tokens['http-version'](req, res)),
+    chalk.white('" '),
+    statusColor(tokens.status(req, res)),
+    chalk.white(' '),
+    chalk.gray(tokens['res[content-length]'] || '-'),
+    chalk.white(' "'),
+    chalk.gray(tokens.referrer(req, res) || '-'),
+    chalk.white('" "'),
+    chalk.gray(tokens['user-agent'](req, res)),
+    chalk.white('"')
+  ].join('');
+};
+
+// 配置每日轮转日志流，使用动态日期生成文件名
+const accessLogStream = rfs.createStream(() => {
+  return moment().tz('Asia/Shanghai').format('YYYY-MM-DD') + '.log';
+}, {
+  interval: '1d',
+  path: logDirectory,
+  maxSize: '10M', // 可选：添加文件大小限制
+  maxFiles: 180 // 可选：自动删除180天前的日志
+});
+
+// 中间件
 app.use(express.json());
-// Log to file with combined format and to console with dev format
-app.use(morgan('combined', { stream: accessLogStream }));
-app.use(morgan('dev'));
+// 日志输出到文件
+app.use(morgan(logFormat, { stream: accessLogStream }));
+// 彩色日志输出到控制台
+app.use(morgan(coloredLogFormat));
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Enable CORS for all origins
@@ -99,8 +143,8 @@ console.log('Using port:', port);
 morgan.token('shanghai-date', () => {
   return moment().tz('Asia/Shanghai').format('DD/MMM/YYYY:HH:mm:ss ZZ');
 });
-// Add request logging
-app.use(morgan(':remote-addr - [:shanghai-date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"', { stream: { write: message => console.log(message.trim()) } }));
+// Request logging
+// app.use(morgan(':remote-addr - [:shanghai-date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"', { stream: { write: message => console.log(message.trim()) } }));
 
 // Add rate limiting
 app.get('/3/:serverAddress', async (req, res) => {

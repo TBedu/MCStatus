@@ -36,32 +36,32 @@ GET /bedrock/3/:serverAddress
 ```
 
 ### Parameters
-- `serverAddress`: Minecraft服务器地址（格式：`host` 或 `host:port`）
-  - Java版默认端口：25565
-  - 基岩版默认端口：19132
+- `serverAddress`: Minecraft server address (Format: `host` or `host:port`)
+  - Default port for Java Edition: 25565
+  - Default port for Bedrock Edition: 19132
 
-### 请求示例
-#### Java版（带端口号）
+### Request Examples
+#### Java Edition (with port number)
 ```
 GET /3/mc.tbedu.top:25565
 ```
 
-#### Java版（不带端口号）
+#### Java Edition (Without Port Number)
 ```
 GET /3/mc.tbedu.top
 ```
 
-#### 基岩版（带端口号）
+#### Bedrock Edition (with port number)
 ```
 GET /bedrock/3/mc.tbedu.top:19132
 ```
 
-#### 基岩版（不带端口号）
+#### Bedrock Edition (Without Port Number)
 ```
 GET /bedrock/3/mc.tbedu.top
 ```
 
-### Java版响应示例
+### Java Edition Response Example
 ```json
 {
   "ip": "118.112.60.42",
@@ -91,7 +91,7 @@ GET /bedrock/3/mc.tbedu.top
 }
 ```
 
-### 基岩版响应示例
+### Bedrock Edition Response Example
 ```json
 {
   "ip": "118.112.60.42",
@@ -117,18 +117,8 @@ GET /bedrock/3/mc.tbedu.top
 }
 ```
 
-### 错误处理
-- **400 Bad Request**: 主机名解析失败
-- **500 Internal Server Error**: 服务器连接错误
-- **503 Service Unavailable**: 当服务器地址不带端口且需要SRV解析时
-  ```json
-  {
-    "error": "本API暂不支持检测SRV解析后的服务器地址"
-  }
-  ```
-
-### 时区说明
-API返回的时间戳（cachetime）使用**上海时区（UTC+8）**。
+### Time Zone Information
+API returns timestamps (cachetime) in **Shanghai Time (UTC+8)**.
 
 ## Configuration
 Configuration is done through environment variables in the .env file:
