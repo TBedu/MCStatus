@@ -139,3 +139,9 @@ Configuration is done through environment variables in the .env file:
 - fs: File system operations
 - path: Path handling utilities
 - chalk: Terminal string styling
+
+## License Information
+This project is released under the MIT License. You are free to use, modify, and distribute the code of this project. However, please retain the copyright information of the original author.
+
+## Contributors
+- FeltSquirrel727 (Original Author)

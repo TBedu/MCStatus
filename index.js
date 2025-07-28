@@ -136,8 +136,11 @@ const rateLimitMiddleware = rateLimit({
 // 应用速率限制到所有API路由
 app.use('/3/*', rateLimitMiddleware);
 
-console.log('MC Status API starting...');
+console.log('MC Status API');
+console.log(`Author: FeltSquirrel727`);
+console.log(`Version: ${require('./package.json').version}`);
 console.log('Using port:', port);
+console.log('Starting...');
 
 // Add Shanghai timezone support for logging
 morgan.token('shanghai-date', () => {
@@ -367,7 +370,7 @@ app.get('/bedrock/3/:serverAddress', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Successfully started server on port ${port}`);
 }).on('error', (err) => {
   console.error('Failed to start server:', err);
   process.exit(1);
@@ -542,6 +545,7 @@ app.get('/', (req, res) => {
 
     <h2>时区说明</h2>
     <p>API返回的所有时间戳均使用<strong>上海时区（UTC+8）</strong></p>
+    <p style='text-align: center; margin-top: 40px; color: #666;'>版权所有 &copy; ${new Date().getFullYear()} FeltSquirrel727 保留所有权利</p>
   </body>
 </html>
   `);
