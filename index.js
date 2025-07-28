@@ -104,6 +104,23 @@ const accessLogStream = rfs.createStream(() => {
   maxFiles: 180 // 可选：自动删除180天前的日志
 });
 
+// 添加日志轮转完成事件监听，删除遗留的.txt文件
+accessLogStream.on('rotate', (oldFile) => {
+  const fs = require('fs');
+  const txtFile = oldFile + '.txt';
+  fs.access(txtFile, fs.constants.F_OK, (err) => {
+    if (!err) {
+      fs.unlink(txtFile, (unlinkErr) => {
+        if (unlinkErr) {
+          console.error(`Failed to delete ${txtFile}:`, unlinkErr);
+        } else {
+          console.log(`Successfully deleted old log file: ${txtFile}`);
+        }
+      });
+    }
+  });
+});
+
 // 中间件
 app.use(express.json());
 // 日志输出到文件
